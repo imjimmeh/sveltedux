@@ -1,5 +1,5 @@
 import type { Action } from "./types.js";
-import { produce, enableMapSet } from "immer";
+import { enableMapSet } from "immer";
 
 // Enable Map and Set support in Immer
 enableMapSet();
@@ -100,7 +100,7 @@ export function freeze<T>(obj: T): Readonly<T> {
   return Object.freeze(obj);
 }
 
-export { produce } from "immer";
+export { produce, isDraft, current } from "immer";
 
 export function createDraftSafeSelector<TState, TResult>(
   selector: (state: TState) => TResult,

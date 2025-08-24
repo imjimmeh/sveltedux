@@ -1,6 +1,6 @@
-import type { Action, CaseReducer, PayloadAction } from "./types.js";
+import type { PayloadAction } from "./types.js";
 import { createSelector } from "./selectors.js";
-import { produce } from "./utils.js";
+import { produce, isDraft } from "./utils.js";
 
 // Entity state interface
 export interface EntityState<T, Id extends string | number = string | number> {
@@ -29,12 +29,30 @@ export interface EntityAdapter<
   selectTotal: (state: any) => number;
   selectById: (state: any, id: Id) => T | undefined;
 
-  addOne: (state: EntityState<T, Id>, action: PayloadAction<T>) => EntityState<T, Id>;
-  addMany: (state: EntityState<T, Id>, action: PayloadAction<T[]>) => EntityState<T, Id>;
-  setOne: (state: EntityState<T, Id>, action: PayloadAction<T>) => EntityState<T, Id>;
-  setMany: (state: EntityState<T, Id>, action: PayloadAction<T[]>) => EntityState<T, Id>;
-  removeOne: (state: EntityState<T, Id>, action: PayloadAction<Id>) => EntityState<T, Id>;
-  removeMany: (state: EntityState<T, Id>, action: PayloadAction<Id[]>) => EntityState<T, Id>;
+  addOne: (
+    state: EntityState<T, Id>,
+    action: PayloadAction<T>
+  ) => EntityState<T, Id>;
+  addMany: (
+    state: EntityState<T, Id>,
+    action: PayloadAction<T[]>
+  ) => EntityState<T, Id>;
+  setOne: (
+    state: EntityState<T, Id>,
+    action: PayloadAction<T>
+  ) => EntityState<T, Id>;
+  setMany: (
+    state: EntityState<T, Id>,
+    action: PayloadAction<T[]>
+  ) => EntityState<T, Id>;
+  removeOne: (
+    state: EntityState<T, Id>,
+    action: PayloadAction<Id>
+  ) => EntityState<T, Id>;
+  removeMany: (
+    state: EntityState<T, Id>,
+    action: PayloadAction<Id[]>
+  ) => EntityState<T, Id>;
   updateOne: (
     state: EntityState<T, Id>,
     action: PayloadAction<{ id: Id; changes: Partial<T> }>
@@ -43,9 +61,18 @@ export interface EntityAdapter<
     state: EntityState<T, Id>,
     action: PayloadAction<{ id: Id; changes: Partial<T> }[]>
   ) => EntityState<T, Id>;
-  upsertOne: (state: EntityState<T, Id>, action: PayloadAction<T>) => EntityState<T, Id>;
-  upsertMany: (state: EntityState<T, Id>, action: PayloadAction<T[]>) => EntityState<T, Id>;
-  removeAll: (state: EntityState<T, Id>, action?: PayloadAction<void>) => EntityState<T, Id>;
+  upsertOne: (
+    state: EntityState<T, Id>,
+    action: PayloadAction<T>
+  ) => EntityState<T, Id>;
+  upsertMany: (
+    state: EntityState<T, Id>,
+    action: PayloadAction<T[]>
+  ) => EntityState<T, Id>;
+  removeAll: (
+    state: EntityState<T, Id>,
+    action?: PayloadAction<void>
+  ) => EntityState<T, Id>;
 
   getInitialState: () => EntityState<T, Id>;
 }
@@ -57,7 +84,9 @@ const defaultSelectId = <T, Id extends string | number = string | number>(
   if (typeof model === "object" && model !== null && "id" in model) {
     return (model as any).id;
   }
-  throw new Error("Entity must have an 'id' property or provide a custom selectId function");
+  throw new Error(
+    "Entity must have an 'id' property or provide a custom selectId function"
+  );
 };
 
 // Default sort comparer
@@ -104,23 +133,46 @@ export function createEntityAdapter<
     return [...ids].sort((a, b) => sortComparer(entities[a], entities[b]));
   };
 
-  const addOne = (state: EntityState<T, Id>, action: PayloadAction<T>): EntityState<T, Id> => {
-    return produce(state, (draft: EntityState<T, Id>) => {
+  const addOne = (
+    state: EntityState<T, Id>,
+    action: PayloadAction<T>
+  ): EntityState<T, Id> => {
+    // If we're already in an Immer draft context, mutate directly
+    if (isDraft(state)) {
       const entity = action.payload;
       const id = selectId(entity);
 
-      if (!(id in draft.entities)) {
-        draft.ids.push(id);
+      if (!(id in state.entities)) {
+        state.ids.push(id);
         if (sortComparer !== defaultSortComparer) {
-          draft.ids = sortIds(draft.ids, draft.entities);
+          state.ids = sortIds(state.ids, state.entities);
         }
       }
 
-      draft.entities = { ...draft.entities, [id]: entity };
-    });
+      state.entities = { ...state.entities, [id]: entity };
+      return state;
+    } else {
+      // If not in draft context, use produce to create new state
+      return produce(state, (draft: EntityState<T, Id>) => {
+        const entity = action.payload;
+        const id = selectId(entity);
+
+        if (!(id in draft.entities)) {
+          draft.ids.push(id);
+          if (sortComparer !== defaultSortComparer) {
+            draft.ids = sortIds(draft.ids, draft.entities);
+          }
+        }
+
+        draft.entities = { ...draft.entities, [id]: entity };
+      });
+    }
   };
 
-  const addMany = (state: EntityState<T, Id>, action: PayloadAction<T[]>): EntityState<T, Id> => {
+  const addMany = (
+    state: EntityState<T, Id>,
+    action: PayloadAction<T[]>
+  ): EntityState<T, Id> => {
     return produce(state, (draft: EntityState<T, Id>) => {
       const entities = action.payload;
 
@@ -140,7 +192,10 @@ export function createEntityAdapter<
     });
   };
 
-  const setOne = (state: EntityState<T, Id>, action: PayloadAction<T>): EntityState<T, Id> => {
+  const setOne = (
+    state: EntityState<T, Id>,
+    action: PayloadAction<T>
+  ): EntityState<T, Id> => {
     return produce(state, (draft: EntityState<T, Id>) => {
       const entity = action.payload;
       const id = selectId(entity);
@@ -156,38 +211,83 @@ export function createEntityAdapter<
     });
   };
 
-  const setMany = (state: EntityState<T, Id>, action: PayloadAction<T[]>): EntityState<T, Id> => {
-    return produce(state, (draft: EntityState<T, Id>) => {
+  const setMany = (
+    state: EntityState<T, Id>,
+    action: PayloadAction<T[]>
+  ): EntityState<T, Id> => {
+    // If we're already in an Immer draft context, mutate directly
+    if (isDraft(state)) {
       const entities = action.payload;
-
+      
       entities.forEach((entity) => {
         const id = selectId(entity);
 
-        if (!(id in draft.entities)) {
-          draft.ids.push(id);
+        if (!(id in state.entities)) {
+          state.ids.push(id);
         }
 
-        draft.entities = { ...draft.entities, [id]: entity };
+        state.entities = { ...state.entities, [id]: entity };
       });
 
       if (sortComparer !== defaultSortComparer) {
-        draft.ids = sortIds(draft.ids, draft.entities);
+        state.ids = sortIds(state.ids, state.entities);
       }
-    });
+      
+      // Return the mutated state (Immer will handle this)
+      return state;
+    } else {
+      // If not in draft context, use produce to create new state
+      return produce(state, (draft: EntityState<T, Id>) => {
+        const entities = action.payload;
+
+        entities.forEach((entity) => {
+          const id = selectId(entity);
+
+          if (!(id in draft.entities)) {
+            draft.ids.push(id);
+          }
+
+          draft.entities = { ...draft.entities, [id]: entity };
+        });
+
+        if (sortComparer !== defaultSortComparer) {
+          draft.ids = sortIds(draft.ids, draft.entities);
+        }
+      });
+    }
   };
 
-  const removeOne = (state: EntityState<T, Id>, action: PayloadAction<Id>): EntityState<T, Id> => {
-    return produce(state, (draft: EntityState<T, Id>) => {
+  const removeOne = (
+    state: EntityState<T, Id>,
+    action: PayloadAction<Id>
+  ): EntityState<T, Id> => {
+    // If we're already in an Immer draft context, mutate directly
+    if (isDraft(state)) {
       const id = action.payload;
 
-      if (id in draft.entities) {
-        delete draft.entities[id];
-        draft.ids = draft.ids.filter((entityId: Id) => entityId !== id);
+      if (id in state.entities) {
+        delete state.entities[id];
+        state.ids = state.ids.filter((entityId: Id) => entityId !== id);
       }
-    });
+      
+      return state;
+    } else {
+      // If not in draft context, use produce to create new state
+      return produce(state, (draft: EntityState<T, Id>) => {
+        const id = action.payload;
+
+        if (id in draft.entities) {
+          delete draft.entities[id];
+          draft.ids = draft.ids.filter((entityId: Id) => entityId !== id);
+        }
+      });
+    }
   };
 
-  const removeMany = (state: EntityState<T, Id>, action: PayloadAction<Id[]>): EntityState<T, Id> => {
+  const removeMany = (
+    state: EntityState<T, Id>,
+    action: PayloadAction<Id[]>
+  ): EntityState<T, Id> => {
     return produce(state, (draft: EntityState<T, Id>) => {
       const ids = action.payload;
 
@@ -205,14 +305,27 @@ export function createEntityAdapter<
     state: EntityState<T, Id>,
     action: PayloadAction<{ id: Id; changes: Partial<T> }>
   ): EntityState<T, Id> => {
-    return produce(state, (draft: EntityState<T, Id>) => {
+    // If we're already in an Immer draft context, mutate directly
+    if (isDraft(state)) {
       const { id, changes } = action.payload;
 
-      if (id in draft.entities) {
-        const entity = draft.entities[id];
-        draft.entities = { ...draft.entities, [id]: { ...entity, ...changes } };
+      if (id in state.entities) {
+        const entity = state.entities[id];
+        state.entities = { ...state.entities, [id]: { ...entity, ...changes } };
       }
-    });
+      
+      return state;
+    } else {
+      // If not in draft context, use produce to create new state
+      return produce(state, (draft: EntityState<T, Id>) => {
+        const { id, changes } = action.payload;
+
+        if (id in draft.entities) {
+          const entity = draft.entities[id];
+          draft.entities = { ...draft.entities, [id]: { ...entity, ...changes } };
+        }
+      });
+    }
   };
 
   const updateMany = (
@@ -232,7 +345,10 @@ export function createEntityAdapter<
     });
   };
 
-  const upsertOne = (state: EntityState<T, Id>, action: PayloadAction<T>): EntityState<T, Id> => {
+  const upsertOne = (
+    state: EntityState<T, Id>,
+    action: PayloadAction<T>
+  ): EntityState<T, Id> => {
     return produce(state, (draft: EntityState<T, Id>) => {
       const entity = action.payload;
       const id = selectId(entity);
@@ -248,7 +364,10 @@ export function createEntityAdapter<
     });
   };
 
-  const upsertMany = (state: EntityState<T, Id>, action: PayloadAction<T[]>): EntityState<T, Id> => {
+  const upsertMany = (
+    state: EntityState<T, Id>,
+    action: PayloadAction<T[]>
+  ): EntityState<T, Id> => {
     return produce(state, (draft: EntityState<T, Id>) => {
       const entities = action.payload;
 
@@ -268,7 +387,10 @@ export function createEntityAdapter<
     });
   };
 
-  const removeAll = (state: EntityState<T, Id>, action?: PayloadAction<void>): EntityState<T, Id> => {
+  const removeAll = (
+    state: EntityState<T, Id>,
+    action?: PayloadAction<void>
+  ): EntityState<T, Id> => {
     return produce(state, (draft: EntityState<T, Id>) => {
       draft.ids = [];
       draft.entities = {} as Record<Id, T>;

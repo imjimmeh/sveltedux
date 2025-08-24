@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { User } from '../example.js';
+  import type { User } from '../example.ts';
 
   interface Props {
     user: User | null;

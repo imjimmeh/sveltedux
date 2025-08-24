@@ -1,11 +1,14 @@
-import type { 
-  Action, 
-  Reducer, 
+import type {
+  Action,
+  Reducer,
   PayloadAction,
   SliceCaseReducer,
   SliceCaseReducerNoPayload,
-  ValidateSliceCaseReducers 
+  ValidateSliceCaseReducers,
 } from "./types.js";
+import { produce, setAutoFreeze } from "immer";
+
+setAutoFreeze(false);
 
 export function combineReducers<TState>(reducers: {
   [K in keyof TState]: Reducer<TState[K], any>;
@@ -50,11 +53,18 @@ export function combineReducers<TState>(reducers: {
 
 export function createReducer<TState>(
   initialState: TState,
-  handlers: Record<string, (state: TState, action: Action) => TState>
+  handlers: Record<string, (state: TState, action: Action) => TState | void>
 ): Reducer<TState> {
   return function reducer(state = initialState, action: Action): TState {
-    if (handlers.hasOwnProperty(action.type)) {
-      return handlers[action.type](state, action);
+    if (Object.hasOwn(handlers, action.type)) {
+      return produce(state, (draft) => {
+        const result = handlers[action.type](draft as TState, action);
+        // If reducer returns a value, replace the entire draft; otherwise rely on mutations
+        if (result !== undefined && result !== null) {
+          return result as any;
+        }
+        // When undefined/null is returned, Immer uses the mutated draft
+      });
     }
     return state;
   };
@@ -62,7 +72,10 @@ export function createReducer<TState>(
 
 export function createSlice<
   TState,
-  TCaseReducers extends Record<string, SliceCaseReducer<TState, any> | SliceCaseReducerNoPayload<TState>>
+  TCaseReducers extends Record<
+    string,
+    SliceCaseReducer<TState, any> | SliceCaseReducerNoPayload<TState>
+  >
 >(config: {
   name: string;
   initialState: TState;
@@ -72,7 +85,10 @@ export function createSlice<
   const { name, initialState, reducers, extraReducers } = config;
 
   type CaseReducerActions = {
-    [K in keyof TCaseReducers]: TCaseReducers[K] extends SliceCaseReducer<TState, infer TPayload>
+    [K in keyof TCaseReducers]: TCaseReducers[K] extends SliceCaseReducer<
+      TState,
+      infer TPayload
+    >
       ? undefined extends TPayload
         ? {
             (): PayloadAction<undefined>;
@@ -97,7 +113,7 @@ export function createSlice<
   for (const reducerName of Object.keys(reducers) as (keyof TCaseReducers)[]) {
     const type = `${name}/${String(reducerName)}`;
     actionTypes[reducerName] = type;
-    
+
     const actionCreator = (payload?: any) => {
       if (payload === undefined) {
         return { type };
@@ -105,7 +121,7 @@ export function createSlice<
       return { type, payload };
     };
     actionCreator.type = type;
-    
+
     (actionCreators as any)[reducerName] = actionCreator;
   }
 
@@ -128,14 +144,29 @@ export function createSlice<
   const reducer: Reducer<TState> = (state = initialState, action) => {
     for (const [reducerName, reducerFunction] of Object.entries(reducers)) {
       if (action.type === `${name}/${reducerName}`) {
-        const result = reducerFunction(state, action);
-        return result ?? state;
+        return produce(state, (draft) => {
+          const result = reducerFunction(draft as TState, action);
+          // If reducer returns a value, replace the entire draft; otherwise rely on mutations
+          if (result !== undefined && result !== null) {
+            return result as any;
+          }
+          // When undefined/null is returned, Immer uses the mutated draft
+        });
       }
     }
 
     if (extraReducerHandlers[action.type]) {
-      const result = extraReducerHandlers[action.type](state, action);
-      return result ?? state;
+      return produce(state, (draft) => {
+        const result = extraReducerHandlers[action.type](
+          draft as TState,
+          action
+        );
+        // If reducer returns a value, replace the entire draft; otherwise rely on mutations
+        if (result !== undefined && result !== null) {
+          return result as any;
+        }
+        // When undefined/null is returned, Immer uses the mutated draft
+      });
     }
 
     return state;

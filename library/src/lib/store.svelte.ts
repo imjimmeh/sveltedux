@@ -82,7 +82,10 @@ export function createStore<TState>(
 
     try {
       isDispatching = true;
-      currentState = currentReducer(currentState, action);
+      const nextState = currentReducer(currentState, action);
+      if (nextState !== currentState) {
+        Object.assign(currentState, nextState);
+      }
     } finally {
       isDispatching = false;
     }

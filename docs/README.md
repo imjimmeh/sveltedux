@@ -34,7 +34,7 @@ This documentation is organized into the following sections:
 ## Installation
 
 ```bash
-npm install sveltekitlibrary
+npm install sveltedux
 ```
 
 ## Quick Links

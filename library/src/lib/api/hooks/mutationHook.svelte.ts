@@ -10,10 +10,10 @@ import {
 import { createMutationSubscription } from "./subscriptions.js";
 
 /**
- * Creates a reactive mutation hook for Svelte 5
+ * Creates a reactive mutation hook for Svelte 5 that integrates with createApi
  */
 export function createMutationHook<TResult, TArgs, TError>(
-  store: Store,
+  store: Store<any>,
   api: Api<any, any, any>,
   endpointName: string
 ) {
@@ -22,104 +22,71 @@ export function createMutationHook<TResult, TArgs, TError>(
   ) {
     const hookOptions = validateMutationOptions(options);
 
-    // Get the mutation definition from the API
+    // Get the endpoint from the API
     const endpoint = api.endpoints[endpointName];
-    const mutationDef = endpoint as any; // Access internal definition
+    if (!endpoint) {
+      throw new Error(`Unknown endpoint: ${endpointName}`);
+    }
 
-    // Create reactive state
+    const initiate = endpoint.initiate;
+    const select = endpoint.select;
+
+    // Create reactive state that will be updated from the store
     let mutationState = $state(createInitialMutationState<TArgs, TResult, TError>());
+    let unsubscribe: (() => void) | null = null;
 
-    // Create trigger function that bypasses the complex thunk system
+    // Set up store subscription to get reactive updates
+    $effect(() => {
+      // Subscribe to store changes to get mutation state
+      unsubscribe = store.subscribe(() => {
+        const currentState = select(store.getState()) as MutationHookResult<TResult, TArgs, TError>;
+        Object.assign(mutationState, currentState);
+      });
+
+      return () => {
+        if (unsubscribe) {
+          unsubscribe();
+          unsubscribe = null;
+        }
+      };
+    });
+
+    // Create trigger function that uses the API's initiate
     const triggerMutation = async (args: TArgs): Promise<{ data?: TResult; error?: TError }> => {
       try {
-        mutationState.isLoading = true;
-        mutationState.isUninitialized = false;
-        mutationState.isError = false;
-        mutationState.isSuccess = false;
-        mutationState.error = undefined;
-
-        // Directly execute the API call instead of using the thunk system
-        // Get the API definition from the internal store
-        const state = store.getState();
-        const reducerPath = api.reducerPath;
+        // Dispatch the async thunk through the API system
+        const resultAction = await store.dispatch(initiate(args));
         
-        // Create a simple request using fetch
-        // This is a simplified approach that bypasses the complex async thunk system
-        
-        // Access the mutation definition correctly
-        // The endpoint should have been created from the endpoint definitions
-        // For now, let's build the request based on the demo's expectation
-        let requestConfig;
-        
-        if (endpointName === 'createPost') {
-          requestConfig = {
-            url: '/posts',
-            method: 'POST',
-            body: args
-          };
-        } else if (endpointName === 'updatePost') {
-          const { id, update } = args as any;
-          requestConfig = {
-            url: `/posts/${id}`,
-            method: 'PUT',
-            body: update
-          };
-        } else if (endpointName === 'deletePost') {
-          requestConfig = {
-            url: `/posts/${args}`,
-            method: 'DELETE'
-          };
+        // Handle the result based on Redux Toolkit's async thunk patterns
+        if (resultAction.type.endsWith('/fulfilled')) {
+          return { data: resultAction.payload as TResult };
+        } else if (resultAction.type.endsWith('/rejected')) {
+          return { error: resultAction.payload as TError };
         } else {
-          // Fallback - try to get from the endpoint definition
-          requestConfig = mutationDef.query ? mutationDef.query(args) : args;
-        }
-        
-        // For now, create a simple direct API call
-        // This assumes the API uses fetchBaseQuery or similar
-        let response;
-        if (typeof requestConfig === 'object' && requestConfig.url) {
-          const url = requestConfig.url.startsWith('http') 
-            ? requestConfig.url 
-            : 'https://jsonplaceholder.typicode.com' + requestConfig.url;
-          
-          response = await fetch(url, {
-            method: requestConfig.method || 'GET',
-            headers: requestConfig.headers || { 'Content-Type': 'application/json' },
-            body: requestConfig.body ? JSON.stringify(requestConfig.body) : undefined
-          });
-          
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          // Fallback - read from store state
+          const currentState = select(store.getState()) as MutationHookResult<TResult, TArgs, TError>;
+          if (currentState.isSuccess && currentState.data !== undefined) {
+            return { data: currentState.data };
+          } else if (currentState.isError && currentState.error !== undefined) {
+            return { error: currentState.error };
           }
-          
-          const data = await response.json();
-          
-          mutationState.data = data as TResult;
-          mutationState.isLoading = false;
-          mutationState.isSuccess = true;
-          mutationState.isError = false;
-          
-          return { data: data as TResult };
-        } else {
-          throw new Error('Invalid request configuration');
         }
-        
+
+        return {};
       } catch (error) {
-        mutationState.error = error as TError;
-        mutationState.isLoading = false;
-        mutationState.isSuccess = false;
-        mutationState.isError = true;
         return { error: error as TError };
       }
     };
 
     // Reset function
     const reset = () => {
+      // For mutations, we might need to dispatch a reset action if available
+      // For now, just reset the local state
       const initial = createInitialMutationState<TArgs, TResult, TError>();
       Object.assign(mutationState, initial);
     };
 
-    // Create the hook result that can be both called as function and accessed as object
+    // Create a callable object that also has properties
     const hookResult = Object.assign(triggerMutation, {
       get data() { return mutationState.data; },
       get error() { return mutationState.error; },
@@ -127,8 +94,8 @@ export function createMutationHook<TResult, TArgs, TError>(
       get isSuccess() { return mutationState.isSuccess; },
       get isError() { return mutationState.isError; },
       get isUninitialized() { return mutationState.isUninitialized; },
-      trigger: triggerMutation,
-      reset
+      reset,
+      trigger: triggerMutation
     });
 
     return hookResult;

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createEntityAdapter } from "./entityAdapter.js";
+import { createSlice } from "./reducers.js";
 import type { PayloadAction } from "./types.js";
 
 interface User {
@@ -335,6 +336,109 @@ describe("createEntityAdapter", () => {
       const result = adapter.addMany(initialState, action);
 
       expect(result.ids).toEqual([2, 3, 1]); // Alice, Bob, John (alphabetical order)
+    });
+  });
+
+  describe("Immer integration with createSlice", () => {
+    interface UserState {
+      users: ReturnType<typeof usersAdapter.getInitialState>;
+      loading: boolean;
+    }
+
+    const usersAdapter = createEntityAdapter<User>();
+    
+    const initialState: UserState = {
+      users: usersAdapter.getInitialState(),
+      loading: false,
+    };
+
+    const usersSlice = createSlice({
+      name: "users",
+      initialState,
+      reducers: {
+        // Test setMany in slice reducer (this was the bug!)
+        setUsers: (state, action: PayloadAction<User[]>) => {
+          usersAdapter.setMany(state.users, action);
+        },
+        // Test addOne in slice reducer
+        addUser: (state, action: PayloadAction<User>) => {
+          usersAdapter.addOne(state.users, action);
+        },
+        // Test updateOne in slice reducer
+        updateUser: (state, action: PayloadAction<{ id: number; changes: Partial<User> }>) => {
+          usersAdapter.updateOne(state.users, action);
+        },
+        // Test removeOne in slice reducer
+        removeUser: (state, action: PayloadAction<number>) => {
+          usersAdapter.removeOne(state.users, action);
+        },
+      },
+    });
+
+    it("should work with setMany in slice reducer (main bug fix)", () => {
+      const users: User[] = [
+        { id: 1, name: "John", email: "john@example.com" },
+        { id: 2, name: "Jane", email: "jane@example.com" },
+      ];
+
+      const state = usersSlice.reducer(initialState, usersSlice.actions.setUsers(users));
+
+      expect(state.users.ids).toEqual([1, 2]);
+      expect(state.users.entities).toEqual({
+        1: users[0],
+        2: users[1],
+      });
+    });
+
+    it("should work with addOne in slice reducer", () => {
+      const user: User = { id: 1, name: "John", email: "john@example.com" };
+      
+      const state = usersSlice.reducer(initialState, usersSlice.actions.addUser(user));
+
+      expect(state.users.ids).toEqual([1]);
+      expect(state.users.entities).toEqual({ 1: user });
+    });
+
+    it("should work with updateOne in slice reducer", () => {
+      // First add a user
+      const user: User = { id: 1, name: "John", email: "john@example.com" };
+      let state = usersSlice.reducer(initialState, usersSlice.actions.addUser(user));
+
+      // Then update the user
+      state = usersSlice.reducer(
+        state, 
+        usersSlice.actions.updateUser({ id: 1, changes: { name: "Johnny" } })
+      );
+
+      expect(state.users.entities[1]?.name).toBe("Johnny");
+    });
+
+    it("should work with removeOne in slice reducer", () => {
+      // First add users
+      const users: User[] = [
+        { id: 1, name: "John", email: "john@example.com" },
+        { id: 2, name: "Jane", email: "jane@example.com" },
+      ];
+      let state = usersSlice.reducer(initialState, usersSlice.actions.setUsers(users));
+
+      // Then remove one
+      state = usersSlice.reducer(state, usersSlice.actions.removeUser(1));
+
+      expect(state.users.ids).toEqual([2]);
+      expect(state.users.entities).toEqual({
+        2: users[1],
+      });
+    });
+
+    it("should maintain other slice state when using entity adapter methods", () => {
+      const users: User[] = [
+        { id: 1, name: "John", email: "john@example.com" },
+      ];
+
+      const state = usersSlice.reducer(initialState, usersSlice.actions.setUsers(users));
+
+      // Entity adapter operations should not affect other slice properties
+      expect(state.loading).toBe(false);
     });
   });
 });

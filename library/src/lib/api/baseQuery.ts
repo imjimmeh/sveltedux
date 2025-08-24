@@ -21,11 +21,19 @@ export function fetchBaseQuery(config: {
       const headers = await prepareRequestHeaders(
         requestConfig.headers,
         prepareHeaders,
-        api
+        api,
+        requestConfig.method
       );
+
+      // Serialize body for JSON requests
+      let body = requestConfig.body;
+      if (body && typeof body === 'object' && headers.get('content-type')?.includes('application/json')) {
+        body = JSON.stringify(body);
+      }
 
       const requestInit: RequestInit = {
         ...requestConfig,
+        body,
         headers,
         signal: createTimeoutSignal(api.signal, timeout),
       };
@@ -100,15 +108,15 @@ async function prepareRequestHeaders(
   prepareHeaders:
     | ((headers: Headers, api: BaseQueryApi) => Headers | void)
     | undefined,
-  api: BaseQueryApi
+  api: BaseQueryApi,
+  method: string = "GET"
 ): Promise<Headers> {
   const headers = new Headers(requestHeaders);
 
   // Set default content type for POST/PUT/PATCH if not already set
-  const method = headers.get("method") || "GET";
   if (["POST", "PUT", "PATCH"].includes(method.toUpperCase())) {
     if (!headers.has("content-type")) {
-      headers.set("Content-Type", "application/json");
+      headers.set("content-type", "application/json");
     }
   }
 

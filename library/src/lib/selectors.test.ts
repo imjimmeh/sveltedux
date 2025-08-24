@@ -261,6 +261,32 @@ describe('createSelector', () => {
 			completionRate: 33
 		});
 	});
+
+	it('should not recompute when object values are deeply equal but references differ', () => {
+		const expensiveComputation = vi.fn((todos: any[]) => {
+			return todos.map(todo => ({ ...todo, processed: true }));
+		});
+
+		const getTodos = createSelector(
+			(state: AppState) => state.todos.todos,
+			expensiveComputation
+		);
+
+		// First call
+		getTodos(mockState);
+		expect(expensiveComputation).toHaveBeenCalledTimes(1);
+
+		// Second call with new array reference but same content - should not recompute
+		const stateWithSameTodos = {
+			...mockState,
+			todos: {
+				...mockState.todos,
+				todos: [...mockState.todos.todos] // New array with same objects
+			}
+		};
+		getTodos(stateWithSameTodos);
+		expect(expensiveComputation).toHaveBeenCalledTimes(1); // Still 1, not recomputed
+	});
 });
 
 describe('createStructuredSelector', () => {
@@ -327,7 +353,7 @@ describe('createStructuredSelector', () => {
 	});
 
 	it('should recompute only when relevant parts change', () => {
-		    const todoSelector = vi.fn((state: AppState) => state.todos.todos);
+	    const todoSelector = vi.fn((state: AppState) => state.todos.todos);
 		const userSelector = vi.fn((state: AppState) => state.user.currentUser);
 
 		const getAppData = createStructuredSelector({

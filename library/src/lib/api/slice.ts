@@ -1,8 +1,10 @@
 import type { PayloadAction } from "../types.js";
 import { createSlice } from "../reducers.js";
-import { createAsyncState } from "../async.js";
+import { createAsyncState } from "../async/thunks.js";
 import type { ApiState, CacheEntry, TagDescription } from "./types.js";
 import { normalizeTags, createTagKey } from "./utils.js";
+// Import to ensure MapSet plugin is enabled
+import "../utils.js";
 
 // Create the initial API state
 export function createInitialApiState(): ApiState {

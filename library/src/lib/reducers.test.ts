@@ -22,7 +22,7 @@ const counterReducer = (state: CounterState = { value: 0 }, action: Action): Cou
 		case 'DECREMENT':
 			return { value: state.value - 1 };
 		case 'SET_VALUE':
-			return { value: action.payload };
+			return { value: action.payload as number };
 		default:
 			return state;
 	}
@@ -31,7 +31,7 @@ const counterReducer = (state: CounterState = { value: 0 }, action: Action): Cou
 const messageReducer = (state: MessageState = { text: '' }, action: Action): MessageState => {
 	switch (action.type) {
 		case 'SET_MESSAGE':
-			return { text: action.payload };
+			return { text: action.payload as string };
 		case 'CLEAR_MESSAGE':
 			return { text: '' };
 		default:
@@ -126,7 +126,7 @@ describe('createReducer', () => {
 		const reducer = createReducer(initialState, {
 			'INCREMENT': (state) => ({ ...state, count: state.count + 1 }),
 			'DECREMENT': (state) => ({ ...state, count: state.count - 1 }),
-			'SET_MESSAGE': (state, action) => ({ ...state, message: action.payload })
+			'SET_MESSAGE': (state, action) => ({ ...state, message: action.payload as string })
 		});
 
 		expect(reducer(undefined, { type: '@@INIT' })).toEqual(initialState);
@@ -149,6 +149,48 @@ describe('createReducer', () => {
 		const newState = reducer(state, { type: 'UNKNOWN' });
 		
 		expect(newState).toBe(state);
+	});
+
+	it('should support Immer mutative syntax', () => {
+		const initialState = { 
+			counter: 0, 
+			items: ['item1'], 
+			nested: { value: 'test' } 
+		};
+		const reducer = createReducer(initialState, {
+			'INCREMENT_MUTATIVE': (state) => {
+				state.counter += 1;
+			},
+			'ADD_ITEM_MUTATIVE': (state, action) => {
+				state.items.push(action.payload as string);
+			},
+			'UPDATE_NESTED_MUTATIVE': (state, action) => {
+				state.nested.value = action.payload as string;
+			},
+			'INCREMENT_IMMUTABLE': (state) => ({ 
+				...state, 
+				counter: state.counter + 1 
+			})
+		});
+
+		let state = reducer(undefined, { type: '@@INIT' });
+		expect(state).toEqual(initialState);
+
+		// Test mutative increment
+		state = reducer(state, { type: 'INCREMENT_MUTATIVE' });
+		expect(state.counter).toBe(1);
+
+		// Test mutative array push
+		state = reducer(state, { type: 'ADD_ITEM_MUTATIVE', payload: 'item2' });
+		expect(state.items).toEqual(['item1', 'item2']);
+
+		// Test mutative nested update
+		state = reducer(state, { type: 'UPDATE_NESTED_MUTATIVE', payload: 'updated' });
+		expect(state.nested.value).toBe('updated');
+
+		// Test immutable still works
+		state = reducer(state, { type: 'INCREMENT_IMMUTABLE' });
+		expect(state.counter).toBe(2);
 	});
 });
 
@@ -266,5 +308,93 @@ describe('createSlice', () => {
 		});
 
 		expect(slice.name).toBe('testSlice');
+	});
+
+	it('should support Immer mutative syntax', () => {
+		const slice = createSlice({
+			name: 'todos',
+			initialState: { 
+				items: [{ id: 1, text: 'Learn Redux', completed: false }],
+				filter: 'all'
+			},
+			reducers: {
+				addTodo: (state, action) => {
+					// Mutative syntax - Immer handles immutability
+					state.items.push({
+						id: Math.max(0, ...state.items.map(t => t.id)) + 1,
+						text: action.payload,
+						completed: false
+					});
+				},
+				toggleTodo: (state, action) => {
+					// Direct mutation of nested properties
+					const todo = state.items.find(item => item.id === action.payload);
+					if (todo) {
+						todo.completed = !todo.completed;
+					}
+				},
+				setFilter: (state, action) => {
+					// Simple property assignment
+					state.filter = action.payload;
+				}
+			}
+		});
+
+		let state = slice.reducer(undefined, { type: '@@INIT' });
+		expect(state.items).toHaveLength(1);
+		expect(state.filter).toBe('all');
+
+		// Test addTodo with mutative syntax
+		state = slice.reducer(state, slice.actions.addTodo('Write tests'));
+		expect(state.items).toHaveLength(2);
+		expect(state.items[1].text).toBe('Write tests');
+		expect(state.items[1].completed).toBe(false);
+
+		// Test toggleTodo with mutative syntax
+		state = slice.reducer(state, slice.actions.toggleTodo(1));
+		expect(state.items[0].completed).toBe(true);
+
+		// Test setFilter with mutative syntax
+		state = slice.reducer(state, slice.actions.setFilter('completed'));
+		expect(state.filter).toBe('completed');
+	});
+
+	it('should work with both mutative and immutable patterns', () => {
+		const slice = createSlice({
+			name: 'mixed',
+			initialState: { counter: 0, list: [] as number[] },
+			reducers: {
+				// Immutable pattern (returning new state)
+				incrementImmutable: (state) => ({ 
+					...state, 
+					counter: state.counter + 1 
+				}),
+				// Mutative pattern (modifying draft)
+				incrementMutative: (state) => {
+					state.counter += 1;
+				},
+				// Mixed: returning a completely new state
+				addToListAndReset: (state, action) => {
+					return { 
+						...state, 
+						list: [...state.list, action.payload],
+						counter: 0 
+					};
+				}
+			}
+		});
+
+		let state = slice.reducer(undefined, { type: '@@INIT' });
+		
+		// Both patterns should work
+		state = slice.reducer(state, slice.actions.incrementImmutable());
+		expect(state.counter).toBe(1);
+
+		state = slice.reducer(state, slice.actions.incrementMutative());
+		expect(state.counter).toBe(2);
+
+		state = slice.reducer(state, slice.actions.addToListAndReset(42));
+		expect(state.list).toEqual([42]);
+		expect(state.counter).toBe(0);
 	});
 });

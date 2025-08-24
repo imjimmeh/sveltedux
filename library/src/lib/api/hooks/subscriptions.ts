@@ -17,7 +17,7 @@ export function createQuerySubscription<
   TStore,
   TSelector extends (state: TStore) => QueryHookResult<TResult, TError>
 >(
-  store: Store,
+  store: Store<TStore>,
   selector: TSelector,
   initiate: (args: TArgs) => any,
   args: TArgs,
@@ -80,7 +80,7 @@ export function createMutationSubscription<
     state: TStore
   ) => MutationHookResult<TResult, TArgs, TError>
 >(
-  store: Store,
+  store: Store<TStore>,
   selector: TSelector,
   initiate: (args: TArgs) => any,
   onStateChange: (state: MutationHookResult<TResult, TArgs, TError>) => void
@@ -123,7 +123,7 @@ export function createLazyQuerySubscription<
     args: TArgs
   ) => (state: TStore) => QueryHookResult<TResult, TError>
 >(
-  store: Store,
+  store: Store<TStore>,
   selector: TSelector,
   initiate: (args: TArgs) => any,
   args: TArgs,

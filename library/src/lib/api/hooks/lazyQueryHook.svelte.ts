@@ -12,7 +12,7 @@ import { createLazyQuerySubscription } from "./subscriptions.js";
  * Lazy query hook - doesn't automatically execute
  */
 export function createLazyQueryHook<TResult, TArgs, TError>(
-  store: Store,
+  store: Store<any>,
   api: Api<any, any, any>,
   endpointName: string
 ) {

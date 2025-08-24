@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Todo } from '../example.js';
+  import type { Todo } from '../example.ts';
   import TodoItem from './TodoItem.svelte';
 
   interface Props {
