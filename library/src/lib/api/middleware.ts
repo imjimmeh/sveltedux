@@ -12,7 +12,7 @@ export function createApiMiddleware(
   },
   apiSliceActions: any,
   asyncThunks: Record<string, any>
-): Middleware {
+): Middleware<any> {
   return (store) => (next) => (action) => {
     const result = next(action);
     
@@ -103,7 +103,7 @@ function handleRefetchOnReconnect(
 }
 
 // Network status middleware to track online/offline state
-export function createNetworkStatusMiddleware(): Middleware {
+export function createNetworkStatusMiddleware(): Middleware<any> {
   return (store) => {
     // Set up event listeners for network status
     if (typeof window !== 'undefined') {

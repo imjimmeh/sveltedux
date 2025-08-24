@@ -93,7 +93,7 @@ describe("Endpoints", () => {
         mockApiSliceActions
       );
 
-      const result = await thunk({ id: 1 });
+      const result = await thunk({ id: 1 })(mockDispatch, mockGetState, undefined);
 
       expect(mockDispatch).toHaveBeenCalledWith(
         mockApiSliceActions.queryStart({
@@ -145,7 +145,7 @@ describe("Endpoints", () => {
         mockApiSliceActions
       );
 
-      const result = await thunk(undefined);
+      const result = await thunk(undefined)(mockDispatch, mockGetState, undefined);
 
       expect((result as any).payload).toEqual({
         posts: mockPosts,
@@ -179,7 +179,7 @@ describe("Endpoints", () => {
         mockApiSliceActions
       );
 
-      await thunk(undefined);
+      await thunk(undefined)(mockDispatch, mockGetState, undefined);
 
       expect(mockDispatch).toHaveBeenCalledWith(
         mockApiSliceActions.querySuccess({
@@ -212,7 +212,7 @@ describe("Endpoints", () => {
         mockApiSliceActions
       );
 
-      const result = await thunk(undefined);
+      const result = await thunk(undefined)(mockDispatch, mockGetState, undefined);
       expect((result as any).payload).toEqual(error);
 
       expect(mockDispatch).toHaveBeenCalledWith(
@@ -246,7 +246,7 @@ describe("Endpoints", () => {
         mockApiSliceActions
       );
 
-      const result = await thunk(undefined);
+      const result = await thunk(undefined)(mockDispatch, mockGetState, undefined);
       expect((result as any).payload).toEqual({
         ...error,
         transformed: true,
@@ -302,7 +302,7 @@ describe("Endpoints", () => {
         mockApiSliceActions
       );
 
-      const result = await thunk(newPost);
+      const result = await thunk(newPost)(mockDispatch, mockGetState, undefined);
 
       expect(mockDispatch).toHaveBeenCalledWith(
         mockApiSliceActions.mutationStart({
@@ -361,7 +361,7 @@ describe("Endpoints", () => {
         mockApiSliceActions
       );
 
-      const result = await thunk({ title: "New Post" });
+      const result = await thunk({ title: "New Post" })(mockDispatch, mockGetState, undefined);
 
       expect((result as any).payload).toEqual({
         ...createdPost,
@@ -396,7 +396,7 @@ describe("Endpoints", () => {
         mockApiSliceActions
       );
 
-      await thunk({ title: "New Post" });
+      await thunk({ title: "New Post" })(mockDispatch, mockGetState, undefined);
 
       expect(mockDispatch).toHaveBeenCalledWith(
         mockApiSliceActions.invalidateTags({
@@ -428,7 +428,7 @@ describe("Endpoints", () => {
         mockApiSliceActions
       );
 
-      const result = await thunk({ title: "New Post" });
+      const result = await thunk({ title: "New Post" })(mockDispatch, mockGetState, undefined);
       expect((result as any).payload).toEqual(error);
 
       expect(mockDispatch).toHaveBeenCalledWith(
@@ -466,7 +466,7 @@ describe("Endpoints", () => {
         mockApiSliceActions
       );
 
-      const result = await thunk({ title: "New Post" });
+      const result = await thunk({ title: "New Post" })(mockDispatch, mockGetState, undefined);
       expect((result as any).payload).toEqual({
         ...error,
         transformed: true,
@@ -496,7 +496,7 @@ describe("Endpoints", () => {
         mockApiSliceActions
       );
 
-      await thunk({ title: "New Post" });
+      await thunk({ title: "New Post" })(mockDispatch, mockGetState, undefined);
 
       // invalidateTags should not be called
       expect(mockApiSliceActions.invalidateTags).not.toHaveBeenCalled();

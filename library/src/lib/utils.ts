@@ -1,5 +1,5 @@
 import type { Action } from "./types.js";
-import { produce, enableMapSet } from "immer";
+import { enableMapSet } from "immer";
 
 // Enable Map and Set support in Immer
 enableMapSet();

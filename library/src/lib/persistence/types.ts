@@ -12,12 +12,12 @@ export interface StorageLike {
   removeItem(key: string): void;
 }
 
-export interface PersistedRecord<T = any> {
+export interface PersistedRecord<T = unknown> {
   version: number;
   state: T;
 }
 
-export interface PersistOptions<TState = any> {
+export interface PersistOptions<TState = unknown> {
   key?: string;
   storage?: StorageLike;
   storageKind?: StorageKind;

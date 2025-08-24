@@ -10,7 +10,7 @@ import {
  * Higher-order function to create API hooks from an API slice
  */
 export function createApiHooks<TApi extends Api<any, any, any>>(
-  store: Store,
+  store: Store<any>,
   api: TApi
 ) {
   const hooks: Record<string, any> = {};
@@ -30,7 +30,7 @@ export function createApiHooks<TApi extends Api<any, any, any>>(
       // Create lazy query hook
       hooks[`useLazy${capitalizeFirst(endpointName)}Query`] =
         createLazyQueryHook(store, api, endpointName);
-    } else {
+    } else if (isMutationEndpoint(endpoint)) {
       // Create mutation hook
       hooks[`use${capitalizeFirst(endpointName)}Mutation`] = createMutationHook(
         store,
@@ -47,7 +47,7 @@ export function createApiHooks<TApi extends Api<any, any, any>>(
  * Utility to create a reactive store subscription
  */
 export function createStoreSubscription<T>(
-  store: Store,
+  store: Store<any>,
   selector: (state: any) => T,
   initialValue?: T
 ): { readonly value: T } {
@@ -77,25 +77,30 @@ function isQueryEndpoint(endpoint: any): boolean {
   return endpoint.type === "query";
 }
 
+function isMutationEndpoint(endpoint: any): boolean {
+  return endpoint.type === "mutation";
+}
+
 function capitalizeFirst(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 // Type helper for generated hooks
 type GeneratedHooks<TApi extends Api<any, any, any>> = {
-  [K in keyof TApi["endpoints"] as TApi["endpoints"][K] extends { select: any }
+  // Query hooks
+  [K in keyof TApi["endpoints"] as TApi["endpoints"][K] extends { type: "query" }
     ? `use${Capitalize<string & K>}Query`
-    : `use${Capitalize<string & K>}Mutation`]: TApi["endpoints"][K] extends {
-    select: any;
-  }
-    ? ReturnType<typeof createQueryHook<any, any, any>>
-    : ReturnType<typeof createMutationHook<any, any, any>>;
+    : never]: ReturnType<typeof createQueryHook<any, any, any>>;
 } & {
-  [K in keyof TApi["endpoints"] as TApi["endpoints"][K] extends { select: any }
+  // Mutation hooks  
+  [K in keyof TApi["endpoints"] as TApi["endpoints"][K] extends { type: "mutation" }
+    ? `use${Capitalize<string & K>}Mutation`
+    : never]: ReturnType<typeof createMutationHook<any, any, any>>;
+} & {
+  // Lazy query hooks
+  [K in keyof TApi["endpoints"] as TApi["endpoints"][K] extends { type: "query" }
     ? `useLazy${Capitalize<string & K>}Query`
-    : never]: TApi["endpoints"][K] extends { select: any }
-    ? ReturnType<typeof createLazyQueryHook<any, any, any>>
-    : never;
+    : never]: ReturnType<typeof createLazyQueryHook<any, any, any>>;
 };
 
 // Type helper for capitalizing strings

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createStore } from "../store.svelte.js";
 import { applyMiddleware, compose } from "../middleware.js";
@@ -10,7 +11,7 @@ import {
   PERSIST_PAUSE,
   PERSIST_RESUME,
 } from "./index.js";
-import { createMemoryStorage } from "../../test/test-utils.js";
+import { createMemoryStorage } from "$lib/test/test-utils.js";
 
 interface TestState {
   count: number;
@@ -24,7 +25,7 @@ const reducer: Reducer<TestState> = (state = initialState, action) => {
     case "INCREMENT":
       return { ...state, count: state.count + 1 };
     case "SET_TEXT":
-      return { ...state, text: action.payload };
+      return { ...state, text: action.payload as string };
     default:
       return state;
   }

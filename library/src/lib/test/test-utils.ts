@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import type { StorageLike } from "../redux/persistence/types.js";
+import type { StorageLike } from "../persistence/types.js";
 
 export function createMemoryStorage(spy?: {
   get?: boolean;

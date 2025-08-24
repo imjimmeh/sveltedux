@@ -8,7 +8,7 @@ First, let's create an API service for a blog application:
 
 ```typescript
 // src/lib/services/blogApi.ts
-import { createApi, fetchBaseQuery } from "sveltekitlibrary/redux";
+import { createApi, fetchBaseQuery } from "sveltedux/api";
 
 // Define our data types
 export interface User {
@@ -118,8 +118,8 @@ Next, we need to integrate our API service with our Redux store:
 
 ```typescript
 // src/lib/store.ts
-import { createSvelteStore, combineReducers, applyMiddleware } from "sveltekitlibrary/redux";
-import { thunkMiddleware } from "sveltekitlibrary/redux";
+import { createSvelteStore, combineReducers, applyMiddleware } from "sveltedux";
+import { thunkMiddleware } from "sveltedux";
 import { blogApi } from "./services/blogApi";
 
 // Combine reducers
@@ -243,7 +243,7 @@ Let's create a form component for adding new posts:
   let userId = 1; // In a real app, this would come from auth
 
   // Use the mutation hook
-  const [addPost, { data, error, isLoading, isSuccess }] = useAddPostMutation();
+  const addPost = useAddPostMutation();
 
   async function handleSubmit() {
     if (!title || !body) return;
@@ -286,17 +286,17 @@ Let's create a form component for adding new posts:
       ></textarea>
     </div>
     
-    <button type="submit" disabled={isLoading}>
-      {isLoading ? "Creating..." : "Create Post"}
+    <button type="submit" disabled={addPost.isLoading}>
+      {addPost.isLoading ? "Creating..." : "Create Post"}
     </button>
     
-    {#if error}
+    {#if addPost.error}
       <div class="error">
-        Failed to create post: {error.message}
+        Failed to create post: {addPost.error.message}
       </div>
     {/if}
     
-    {#if isSuccess}
+    {#if addPost.isSuccess}
       <div class="success">
         Post created successfully!
       </div>
@@ -398,7 +398,7 @@ Let's create a component that shows a single post with its comments:
   });
 
   // Mutation for adding comments
-  const [addComment, { isLoading: isAddingComment }] = useAddCommentMutation();
+  const addComment = useAddCommentMutation();
 
   // Form state for new comments
   let commentName = "";
@@ -509,8 +509,8 @@ Let's create a component that shows a single post with its comments:
             ></textarea>
           </div>
           
-          <button type="submit" disabled={isAddingComment}>
-            {isAddingComment ? "Adding..." : "Add Comment"}
+          <button type="submit" disabled={addComment.isLoading}>
+            {addComment.isLoading ? "Adding..." : "Add Comment"}
           </button>
         </form>
       </div>
@@ -642,302 +642,7 @@ Let's create a component that shows a single post with its comments:
 
 ## Advanced Usage: Optimistic Updates
 
-Let's implement optimistic updates for a better user experience:
-
-```typescript
-// src/lib/services/blogApi.ts (enhanced)
-// ... existing code ...
-
-export const blogApi = createApi({
-  // ... existing config ...
-  endpoints: (build) => ({
-    // ... existing endpoints ...
-    
-    // Enhanced deletePost with optimistic update
-    deletePost: build.mutation<{ success: boolean; id: number }, number>({
-      query: (id) => ({
-        url: `/posts/${id}`,
-        method: "DELETE",
-      }),
-      async onQueryStarted(id, { dispatch, queryFulfilled }) {
-        // Optimistically update the cache
-        const patchResult = dispatch(
-          blogApi.util.updateQueryData("getPosts", undefined, (draft) => {
-            return draft.filter((post) => post.id !== id);
-          })
-        );
-        
-        try {
-          // Wait for the mutation to complete
-          await queryFulfilled;
-        } catch {
-          // If the mutation fails, undo the optimistic update
-          patchResult.undo();
-        }
-      },
-      invalidatesTags: (result, error, id) => [{ type: "Post", id }],
-    }),
-    
-    // Enhanced updatePost with optimistic update
-    updatePost: build.mutation<Post, Partial<Post> & Pick<Post, "id">>({
-      query: ({ id, ...patch }) => ({
-        url: `/posts/${id}`,
-        method: "PUT",
-        body: patch,
-      }),
-      async onQueryStarted({ id, ...patch }, { dispatch, queryFulfilled }) {
-        // Optimistically update the cache for getPosts
-        const patchResult1 = dispatch(
-          blogApi.util.updateQueryData("getPosts", undefined, (draft) => {
-            const existingPost = draft.find((post) => post.id === id);
-            if (existingPost) {
-              Object.assign(existingPost, patch);
-            }
-          })
-        );
-        
-        // Optimistically update the cache for getPost
-        const patchResult2 = dispatch(
-          blogApi.util.updateQueryData("getPost", id, (draft) => {
-            Object.assign(draft, patch);
-          })
-        );
-        
-        try {
-          // Wait for the mutation to complete
-          await queryFulfilled;
-        } catch {
-          // If the mutation fails, undo the optimistic updates
-          patchResult1.undo();
-          patchResult2.undo();
-        }
-      },
-      invalidatesTags: (result, error, { id }) => [{ type: "Post", id }],
-    }),
-  }),
-});
-
-// ... existing code ...
-```
-
-## Using Optimistic Updates in Components
-
-Let's create a component that demonstrates optimistic updates:
-
-```svelte
-<!-- src/routes/posts/manage/+page.svelte -->
-<script lang="ts">
-  import { store } from "$lib/store";
-  import { useGetPostsQuery, useDeletePostMutation, useUpdatePostMutation } from "$lib/services/blogApi";
-
-  const { data: posts, error, isLoading, isFetching, refetch } = useGetPostsQuery();
-  const [deletePost, { isLoading: isDeleting }] = useDeletePostMutation();
-  const [updatePost, { isLoading: isUpdating }] = useUpdatePostMutation();
-
-  let editingId: number | null = null;
-  let editTitle = "";
-  let editBody = "";
-
-  function startEditing(post) {
-    editingId = post.id;
-    editTitle = post.title;
-    editBody = post.body;
-  }
-
-  function cancelEditing() {
-    editingId = null;
-    editTitle = "";
-    editBody = "";
-  }
-
-  async function saveEdit(postId: number) {
-    if (!editTitle || !editBody) return;
-    
-    try {
-      await updatePost({ id: postId, title: editTitle, body: editBody });
-      cancelEditing();
-    } catch (err) {
-      console.error("Failed to update post:", err);
-    }
-  }
-
-  async function handleDelete(postId: number) {
-    if (!confirm("Are you sure you want to delete this post?")) return;
-    
-    try {
-      await deletePost(postId);
-    } catch (err) {
-      console.error("Failed to delete post:", err);
-    }
-  }
-</script>
-
-<div class="manage-posts-page">
-  <header>
-    <h1>Manage Posts</h1>
-    <button on:click={refetch} disabled={isFetching}>
-      {isFetching ? "Refreshing..." : "Refresh"}
-    </button>
-  </header>
-
-  {#if isLoading}
-    <div class="loading">Loading posts...</div>
-  {:else if error}
-    <div class="error">
-      Error loading posts: {error.status} - {error.message}
-      <button on:click={refetch}>Retry</button>
-    </div>
-  {:else if posts}
-    <div class="posts-list">
-      {#each posts.slice(0, 20) as post (post.id)}
-        {#if editingId === post.id}
-          <!-- Edit form -->
-          <div class="post-item editing">
-            <div class="form-group">
-              <input
-                type="text"
-                bind:value={editTitle}
-                placeholder="Post title"
-              />
-            </div>
-            <div class="form-group">
-              <textarea
-                bind:value={editBody}
-                placeholder="Post content"
-                rows="3"
-              ></textarea>
-            </div>
-            <div class="actions">
-              <button 
-                on:click={() => saveEdit(post.id)} 
-                disabled={isUpdating}
-                class="save"
-              >
-                {isUpdating ? "Saving..." : "Save"}
-              </button>
-              <button on:click={cancelEditing} class="cancel">Cancel</button>
-            </div>
-          </div>
-        {:else}
-          <!-- Display post -->
-          <div class="post-item">
-            <h3>{post.title}</h3>
-            <p>{post.body.substring(0, 100)}...</p>
-            <div class="actions">
-              <button on:click={() => startEditing(post)} class="edit">Edit</button>
-              <button 
-                on:click={() => handleDelete(post.id)} 
-                disabled={isDeleting}
-                class="delete"
-              >
-                {isDeleting ? "Deleting..." : "Delete"}
-              </button>
-            </div>
-          </div>
-        {/if}
-      {/each}
-    </div>
-  {/if}
-</div>
-
-<style>
-  .manage-posts-page {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 1rem;
-  }
-
-  header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
-  }
-
-  .loading, .error {
-    text-align: center;
-    padding: 2rem;
-  }
-
-  .posts-list {
-    display: grid;
-    gap: 1rem;
-  }
-
-  .post-item {
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 1rem;
-    background: white;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  }
-
-  .post-item.editing {
-    background: #f0f8ff;
-  }
-
-  .post-item h3 {
-    margin: 0 0 0.5rem 0;
-    color: #333;
-  }
-
-  .post-item p {
-    margin: 0 0 1rem 0;
-    color: #666;
-  }
-
-  .form-group {
-    margin-bottom: 1rem;
-  }
-
-  input, textarea {
-    width: 100%;
-    padding: 0.5rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-family: inherit;
-    font-size: 1rem;
-  }
-
-  textarea {
-    resize: vertical;
-  }
-
-  .actions {
-    display: flex;
-    gap: 0.5rem;
-  }
-
-  button {
-    padding: 0.5rem 1rem;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.9rem;
-  }
-
-  .edit, .save {
-    background: #007acc;
-    color: white;
-  }
-
-  .delete, .cancel {
-    background: #d32f2f;
-    color: white;
-  }
-
-  button:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-  }
-
-  .error button {
-    margin-top: 1rem;
-    background: #007acc;
-    color: white;
-  }
-</style>
-```
+For a better user experience, you can implement optimistic updates. This library provides `createOptimisticAsyncThunk` for this purpose, but it is not directly integrated into the `createApi` utility. You would use it as a separate async thunk.
 
 ## Performance Optimization
 
@@ -945,7 +650,7 @@ For better performance, you can use the API's built-in selectors to monitor cach
 
 ```typescript
 // src/lib/selectors/apiSelectors.ts
-import { createApiStateSelectors } from "sveltekitlibrary/redux";
+import { createApiStateSelectors } from "sveltedux/api";
 import type { RootState } from "$lib/store";
 
 // Create selectors for our blog API

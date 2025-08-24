@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi } from "vitest";
 import { createStore } from "../store.svelte.js";
 import type { Reducer } from "../types.js";
@@ -6,7 +7,7 @@ import {
   purgePersistedState,
   type StorageLike,
 } from "./index.js";
-import { createMemoryStorage } from "../../test/test-utils.js";
+import { createMemoryStorage } from "$lib/test/test-utils.js";
 
 interface TestState {
   count: number;
@@ -20,7 +21,7 @@ const reducer: Reducer<TestState> = (state = initialState, action) => {
     case "INCREMENT":
       return { ...state, count: state.count + 1 };
     case "SET_TEXT":
-      return { ...state, text: action.payload };
+      return { ...state, text: action.payload as string };
     default:
       return state;
   }
@@ -117,7 +118,7 @@ describe("persist enhancer - rehydrate and persist", () => {
     // Simulate old version payload
     storage.setItem(key, JSON.stringify({ version: 1, state: { old: true } }));
 
-    const enhancer = createPersistEnhancer({
+    const enhancer = createPersistEnhancer<TestState>({
       key,
       storage,
       version: 2,
@@ -155,7 +156,7 @@ describe("persist enhancer - rehydrate and persist", () => {
       },
     };
 
-    const enhancer = createPersistEnhancer({
+    const enhancer = createPersistEnhancer<TestState>({
       key,
       storage: throwingStorage,
       version: 2,

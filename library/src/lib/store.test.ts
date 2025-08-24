@@ -19,7 +19,7 @@ const testReducer: Reducer<TestState> = (state = initialState, action) => {
 		case 'DECREMENT':
 			return { ...state, count: state.count - 1 };
 		case 'SET_MESSAGE':
-			return { ...state, message: action.payload };
+			return { ...state, message: action.payload as string };
 		case 'RESET':
 			return initialState;
 		default:

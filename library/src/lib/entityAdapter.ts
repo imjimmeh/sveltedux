@@ -1,4 +1,4 @@
-import type { Action, CaseReducer, PayloadAction } from "./types.js";
+import type { PayloadAction } from "./types.js";
 import { createSelector } from "./selectors.js";
 import { produce } from "./utils.js";
 
@@ -29,12 +29,30 @@ export interface EntityAdapter<
   selectTotal: (state: any) => number;
   selectById: (state: any, id: Id) => T | undefined;
 
-  addOne: (state: EntityState<T, Id>, action: PayloadAction<T>) => EntityState<T, Id>;
-  addMany: (state: EntityState<T, Id>, action: PayloadAction<T[]>) => EntityState<T, Id>;
-  setOne: (state: EntityState<T, Id>, action: PayloadAction<T>) => EntityState<T, Id>;
-  setMany: (state: EntityState<T, Id>, action: PayloadAction<T[]>) => EntityState<T, Id>;
-  removeOne: (state: EntityState<T, Id>, action: PayloadAction<Id>) => EntityState<T, Id>;
-  removeMany: (state: EntityState<T, Id>, action: PayloadAction<Id[]>) => EntityState<T, Id>;
+  addOne: (
+    state: EntityState<T, Id>,
+    action: PayloadAction<T>
+  ) => EntityState<T, Id>;
+  addMany: (
+    state: EntityState<T, Id>,
+    action: PayloadAction<T[]>
+  ) => EntityState<T, Id>;
+  setOne: (
+    state: EntityState<T, Id>,
+    action: PayloadAction<T>
+  ) => EntityState<T, Id>;
+  setMany: (
+    state: EntityState<T, Id>,
+    action: PayloadAction<T[]>
+  ) => EntityState<T, Id>;
+  removeOne: (
+    state: EntityState<T, Id>,
+    action: PayloadAction<Id>
+  ) => EntityState<T, Id>;
+  removeMany: (
+    state: EntityState<T, Id>,
+    action: PayloadAction<Id[]>
+  ) => EntityState<T, Id>;
   updateOne: (
     state: EntityState<T, Id>,
     action: PayloadAction<{ id: Id; changes: Partial<T> }>
@@ -43,9 +61,18 @@ export interface EntityAdapter<
     state: EntityState<T, Id>,
     action: PayloadAction<{ id: Id; changes: Partial<T> }[]>
   ) => EntityState<T, Id>;
-  upsertOne: (state: EntityState<T, Id>, action: PayloadAction<T>) => EntityState<T, Id>;
-  upsertMany: (state: EntityState<T, Id>, action: PayloadAction<T[]>) => EntityState<T, Id>;
-  removeAll: (state: EntityState<T, Id>, action?: PayloadAction<void>) => EntityState<T, Id>;
+  upsertOne: (
+    state: EntityState<T, Id>,
+    action: PayloadAction<T>
+  ) => EntityState<T, Id>;
+  upsertMany: (
+    state: EntityState<T, Id>,
+    action: PayloadAction<T[]>
+  ) => EntityState<T, Id>;
+  removeAll: (
+    state: EntityState<T, Id>,
+    action?: PayloadAction<void>
+  ) => EntityState<T, Id>;
 
   getInitialState: () => EntityState<T, Id>;
 }
@@ -57,7 +84,9 @@ const defaultSelectId = <T, Id extends string | number = string | number>(
   if (typeof model === "object" && model !== null && "id" in model) {
     return (model as any).id;
   }
-  throw new Error("Entity must have an 'id' property or provide a custom selectId function");
+  throw new Error(
+    "Entity must have an 'id' property or provide a custom selectId function"
+  );
 };
 
 // Default sort comparer
@@ -104,7 +133,10 @@ export function createEntityAdapter<
     return [...ids].sort((a, b) => sortComparer(entities[a], entities[b]));
   };
 
-  const addOne = (state: EntityState<T, Id>, action: PayloadAction<T>): EntityState<T, Id> => {
+  const addOne = (
+    state: EntityState<T, Id>,
+    action: PayloadAction<T>
+  ): EntityState<T, Id> => {
     return produce(state, (draft: EntityState<T, Id>) => {
       const entity = action.payload;
       const id = selectId(entity);
@@ -120,7 +152,10 @@ export function createEntityAdapter<
     });
   };
 
-  const addMany = (state: EntityState<T, Id>, action: PayloadAction<T[]>): EntityState<T, Id> => {
+  const addMany = (
+    state: EntityState<T, Id>,
+    action: PayloadAction<T[]>
+  ): EntityState<T, Id> => {
     return produce(state, (draft: EntityState<T, Id>) => {
       const entities = action.payload;
 
@@ -140,7 +175,10 @@ export function createEntityAdapter<
     });
   };
 
-  const setOne = (state: EntityState<T, Id>, action: PayloadAction<T>): EntityState<T, Id> => {
+  const setOne = (
+    state: EntityState<T, Id>,
+    action: PayloadAction<T>
+  ): EntityState<T, Id> => {
     return produce(state, (draft: EntityState<T, Id>) => {
       const entity = action.payload;
       const id = selectId(entity);
@@ -156,7 +194,10 @@ export function createEntityAdapter<
     });
   };
 
-  const setMany = (state: EntityState<T, Id>, action: PayloadAction<T[]>): EntityState<T, Id> => {
+  const setMany = (
+    state: EntityState<T, Id>,
+    action: PayloadAction<T[]>
+  ): EntityState<T, Id> => {
     return produce(state, (draft: EntityState<T, Id>) => {
       const entities = action.payload;
 
@@ -176,7 +217,10 @@ export function createEntityAdapter<
     });
   };
 
-  const removeOne = (state: EntityState<T, Id>, action: PayloadAction<Id>): EntityState<T, Id> => {
+  const removeOne = (
+    state: EntityState<T, Id>,
+    action: PayloadAction<Id>
+  ): EntityState<T, Id> => {
     return produce(state, (draft: EntityState<T, Id>) => {
       const id = action.payload;
 
@@ -187,7 +231,10 @@ export function createEntityAdapter<
     });
   };
 
-  const removeMany = (state: EntityState<T, Id>, action: PayloadAction<Id[]>): EntityState<T, Id> => {
+  const removeMany = (
+    state: EntityState<T, Id>,
+    action: PayloadAction<Id[]>
+  ): EntityState<T, Id> => {
     return produce(state, (draft: EntityState<T, Id>) => {
       const ids = action.payload;
 
@@ -232,7 +279,10 @@ export function createEntityAdapter<
     });
   };
 
-  const upsertOne = (state: EntityState<T, Id>, action: PayloadAction<T>): EntityState<T, Id> => {
+  const upsertOne = (
+    state: EntityState<T, Id>,
+    action: PayloadAction<T>
+  ): EntityState<T, Id> => {
     return produce(state, (draft: EntityState<T, Id>) => {
       const entity = action.payload;
       const id = selectId(entity);
@@ -248,7 +298,10 @@ export function createEntityAdapter<
     });
   };
 
-  const upsertMany = (state: EntityState<T, Id>, action: PayloadAction<T[]>): EntityState<T, Id> => {
+  const upsertMany = (
+    state: EntityState<T, Id>,
+    action: PayloadAction<T[]>
+  ): EntityState<T, Id> => {
     return produce(state, (draft: EntityState<T, Id>) => {
       const entities = action.payload;
 
@@ -268,7 +321,10 @@ export function createEntityAdapter<
     });
   };
 
-  const removeAll = (state: EntityState<T, Id>, action?: PayloadAction<void>): EntityState<T, Id> => {
+  const removeAll = (
+    state: EntityState<T, Id>,
+    action?: PayloadAction<void>
+  ): EntityState<T, Id> => {
     return produce(state, (draft: EntityState<T, Id>) => {
       draft.ids = [];
       draft.entities = {} as Record<Id, T>;

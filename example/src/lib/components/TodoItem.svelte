@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Todo } from '../example.js';
+  import type { Todo } from '../example.ts';
 
   interface Props {
     todo: Todo;

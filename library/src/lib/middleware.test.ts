@@ -1,11 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-  applyMiddleware,
-  compose,
-  thunkMiddleware,
-  loggerMiddleware,
-  createListenerMiddleware,
-} from "./middleware.js";
+import { applyMiddleware, compose, thunkMiddleware } from "./middleware.js";
+import { createListenerMiddleware } from "./middleware/createListenerMiddleware.js";
+import { loggerMiddleware } from "./middleware/loggerMiddleware.js";
 import { createStore } from "./store.svelte.js";
 import type { Action, Middleware } from "./types.js";
 
@@ -26,7 +22,7 @@ const testReducer = (state = initialState, action: Action): TestState => {
     case "DECREMENT":
       return { ...state, count: state.count - 1 };
     case "ADD_MESSAGE":
-      return { ...state, messages: [...state.messages, action.payload] };
+      return { ...state, messages: [...state.messages, action.payload as string] };
     default:
       return state;
   }
@@ -60,7 +56,7 @@ describe("compose", () => {
 describe("applyMiddleware", () => {
   it("should apply middleware to store", () => {
     const actionLogger: string[] = [];
-    const loggingMiddleware: Middleware =
+    const loggingMiddleware: Middleware<TestState> =
       ({ dispatch, getState }) =>
       (next) =>
       (action) => {
@@ -82,14 +78,14 @@ describe("applyMiddleware", () => {
   it("should apply multiple middleware in correct order", () => {
     const log: string[] = [];
 
-    const middleware1: Middleware = () => (next) => (action) => {
+    const middleware1: Middleware<TestState> = () => (next) => (action) => {
       log.push("middleware1-before");
       const result = next(action);
       log.push("middleware1-after");
       return result;
     };
 
-    const middleware2: Middleware = () => (next) => (action) => {
+    const middleware2: Middleware<TestState> = () => (next) => (action) => {
       log.push("middleware2-before");
       const result = next(action);
       log.push("middleware2-after");
@@ -139,7 +135,7 @@ describe("applyMiddleware", () => {
   });
 
   it("should allow middleware to modify actions", () => {
-    const uppercaseMiddleware: Middleware = () => (next) => (action) => {
+    const uppercaseMiddleware: Middleware<TestState> = () => (next) => (action) => {
       if (action.type === "ADD_MESSAGE" && typeof action.payload === "string") {
         return next({
           ...action,
@@ -158,7 +154,7 @@ describe("applyMiddleware", () => {
   });
 
   it("should allow middleware to prevent actions", () => {
-    const filterMiddleware: Middleware = () => (next) => (action) => {
+    const filterMiddleware: Middleware<TestState> = () => (next) => (action) => {
       if (action.type === "INCREMENT") {
         // Don't call next() to prevent the action
         return action;
@@ -336,12 +332,12 @@ describe("middleware integration", () => {
   });
 
   it("should preserve action return values through middleware chain", () => {
-    const middleware1: Middleware = () => (next) => (action) => {
+    const middleware1: Middleware<TestState> = () => (next) => (action) => {
       const result = next(action);
       return { ...result, middleware1: true };
     };
 
-    const middleware2: Middleware = () => (next) => (action) => {
+    const middleware2: Middleware<TestState> = () => (next) => (action) => {
       const result = next(action);
       return { ...result, middleware2: true };
     };
@@ -358,7 +354,7 @@ describe("middleware integration", () => {
   });
 
   it("should handle errors in middleware gracefully", () => {
-    const errorMiddleware: Middleware = () => (next) => (action) => {
+    const errorMiddleware: Middleware<TestState> = () => (next) => (action) => {
       if (action.type === "ERROR") {
         throw new Error("Middleware error");
       }
@@ -415,7 +411,10 @@ describe("createListenerMiddleware", () => {
     const enhancer = applyMiddleware(middleware);
     const store = createStore(testReducer, undefined, enhancer);
 
-    const addMessage = { type: "ADD_MESSAGE" };
+    const addMessage = Object.assign(
+      (payload?: string) => ({ type: "ADD_MESSAGE", payload }),
+      { type: "ADD_MESSAGE" }
+    );
     const effect = vi.fn();
 
     startListening({
@@ -452,7 +451,7 @@ describe("createListenerMiddleware", () => {
 
 describe("applyMiddleware error paths", () => {
   it("throws if dispatching during middleware construction", () => {
-    const constructingMiddleware: Middleware = ({ dispatch }) => {
+    const constructingMiddleware: Middleware<TestState> = ({ dispatch }) => {
       // Attempt to dispatch during construction phase
       expect(() => dispatch({ type: "DURING_CONSTRUCTION" } as any)).toThrow(
         "Dispatching while constructing your middleware is not allowed."

@@ -1,33 +1,84 @@
 <script lang="ts">
-  import { store, actions, selectors } from './example.js';
-  import UserProfile from './components/UserProfile.svelte';
-  import TodoList from './components/TodoList.svelte';
-  import TodoFilters from './components/TodoFilters.svelte';
-  import TodoStats from './components/TodoStats.svelte';
-  import ThemeToggle from './components/ThemeToggle.svelte';
-  import TodoInput from './components/TodoInput.svelte';
+  import { store, actions, selectors } from "./index";
+  import { 
+    useGetUserQuery, 
+    useGetTodosQuery, 
+    useAddTodoMutation, 
+    useUpdateTodoMutation, 
+    useDeleteTodoMutation 
+  } from "./api/hooks";
+  import UserProfile from "./components/UserProfile.svelte";
+  import TodoList from "./components/TodoList.svelte";
+  import TodoFilters from "./components/TodoFilters.svelte";
+  import TodoStats from "./components/TodoStats.svelte";
+  import ThemeToggle from "./components/ThemeToggle.svelte";
+  import TodoInput from "./components/TodoInput.svelte";
 
+  // Use API hooks for data fetching
+  const userQuery = useGetUserQuery(1);
+  const todosQuery = useGetTodosQuery();
+  
+  // Mutation hooks
+  const addTodoMutation = useAddTodoMutation();
+  const updateTodoMutation = useUpdateTodoMutation();
+  const deleteTodoMutation = useDeleteTodoMutation();
+
+  // Local state for UI
   const state = $derived(store.state);
-  const visibleTodos = $derived(selectors.todos.getVisibleTodos(state));
-  const todoStats = $derived(selectors.todos.getTodoStats(state));
-  const currentUser = $derived(selectors.user.getCurrentUser(state));
-  const isLoading = $derived(selectors.user.isUserLoading(state));
-  const userError = $derived(selectors.user.getUserError(state));
   const theme = $derived(selectors.ui.getTheme(state));
+  
+  // Derived values from API data
+  const currentUser = $derived(userQuery.data);
+  const isUserLoading = $derived(userQuery.isLoading);
+  const userError = $derived(userQuery.error);
+  
+  const todos = $derived(todosQuery.data || []);
+  const visibleTodos = $derived(
+    todos.filter(todo => {
+      const filter = state.todos.filter;
+      if (filter === "active") return !todo.completed;
+      if (filter === "completed") return todo.completed;
+      return true;
+    })
+  );
+  
+  const todoStats = $derived({
+    total: todos.length,
+    completed: todos.filter(t => t.completed).length,
+    active: todos.filter(t => !t.completed).length,
+  });
 
-  function addTodo(text: string) {
-    store.dispatch(actions.todos.addTodo({ text }));
+  async function addTodo(text: string) {
+    try {
+      await addTodoMutation({ text });
+    } catch (error) {
+      console.error('Failed to add todo:', error);
+    }
   }
 
-  function toggleTodo(id: number) {
-    store.dispatch(actions.todos.toggleTodo({ id }));
+  async function toggleTodo(id: number) {
+    const todo = todos.find(t => t.id === id);
+    if (todo) {
+      try {
+        await updateTodoMutation({ 
+          id, 
+          completed: !todo.completed 
+        });
+      } catch (error) {
+        console.error('Failed to toggle todo:', error);
+      }
+    }
   }
 
-  function removeTodo(id: number) {
-    store.dispatch(actions.todos.removeTodo({ id }));
+  async function removeTodo(id: number) {
+    try {
+      await deleteTodoMutation(id);
+    } catch (error) {
+      console.error('Failed to remove todo:', error);
+    }
   }
 
-  function setFilter(filter: 'all' | 'active' | 'completed') {
+  function setFilter(filter: "all" | "active" | "completed") {
     store.dispatch(actions.todos.setFilter(filter));
   }
 
@@ -40,18 +91,18 @@
   }
 
   function fetchUser() {
-    store.dispatch(actions.user.fetchUser(1));
+    userQuery.refetch();
   }
 
   function fetchTodos() {
-    store.dispatch(actions.todos.fetchTodos());
+    todosQuery.refetch();
   }
 </script>
 
-<div class="app" class:dark={theme === 'dark'}>
+<div class="app" class:dark={theme === "dark"}>
   <header>
     <h1>🚀 Redux-esque Todo App</h1>
-    <ThemeToggle 
+    <ThemeToggle
       {theme}
       sidebarOpen={state.ui.sidebarOpen}
       onToggleTheme={toggleTheme}
@@ -62,27 +113,27 @@
   <div class="content">
     {#if state.ui.sidebarOpen}
       <aside class="sidebar">
-        <UserProfile 
+        <UserProfile
           user={currentUser}
-          isLoading={isLoading}
+          isLoading={isUserLoading}
           error={userError}
           onFetchUser={fetchUser}
         />
-        
+
         <TodoStats stats={todoStats} />
       </aside>
     {/if}
 
     <main class="main-content">
       <TodoInput onAddTodo={addTodo} />
-      
-      <TodoFilters 
+
+      <TodoFilters
         currentFilter={state.todos.filter}
         onSetFilter={setFilter}
         onRefresh={fetchTodos}
       />
 
-      <TodoList 
+      <TodoList
         todos={visibleTodos || []}
         onToggleTodo={toggleTodo}
         onRemoveTodo={removeTodo}
@@ -93,7 +144,8 @@
 
 <style>
   .app {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      sans-serif;
     min-height: 100vh;
     transition: all 0.3s ease;
     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);

@@ -192,7 +192,7 @@ describe("API Utils", () => {
     it("should throw error for missing query function", () => {
       const definition = {};
 
-      expect(() => validateEndpointDefinition("getPosts", definition)).toThrow(
+      expect(() => validateEndpointDefinition("getPosts", definition as any)).toThrow(
         'Endpoint "getPosts" must have a query function'
       );
     });
@@ -200,7 +200,7 @@ describe("API Utils", () => {
     it("should throw error for non-function query", () => {
       const definition = { query: "/posts" };
 
-      expect(() => validateEndpointDefinition("getPosts", definition)).toThrow(
+      expect(() => validateEndpointDefinition("getPosts", definition as any)).toThrow(
         'Endpoint "getPosts" must have a query function'
       );
     });
@@ -211,7 +211,7 @@ describe("API Utils", () => {
         transformResponse: "not-a-function",
       };
 
-      expect(() => validateEndpointDefinition("getPosts", definition)).toThrow(
+      expect(() => validateEndpointDefinition("getPosts", definition as any)).toThrow(
         'Endpoint "getPosts" transformResponse must be a function'
       );
     });
@@ -222,7 +222,7 @@ describe("API Utils", () => {
         transformErrorResponse: "not-a-function",
       };
 
-      expect(() => validateEndpointDefinition("getPosts", definition)).toThrow(
+      expect(() => validateEndpointDefinition("getPosts", definition as any)).toThrow(
         'Endpoint "getPosts" transformErrorResponse must be a function'
       );
     });

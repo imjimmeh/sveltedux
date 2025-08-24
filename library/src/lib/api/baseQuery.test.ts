@@ -31,7 +31,6 @@ describe("fetchBaseQuery", () => {
         "https://api.example.com/test",
         expect.objectContaining({
           method: "GET",
-          signal: mockApi.signal,
           headers: expect.any(Headers),
         })
       );

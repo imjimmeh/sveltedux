@@ -18,7 +18,7 @@ The API system consists of several key components:
 The main function for creating an API service.
 
 ```typescript
-import { createApi, fetchBaseQuery } from "sveltekitlibrary/redux";
+import { createApi, fetchBaseQuery } from "sveltedux/api";
 
 interface Post {
   id: number;
@@ -92,7 +92,7 @@ export const {
 A prebuilt baseQuery using the Fetch API.
 
 ```typescript
-import { fetchBaseQuery } from "sveltekitlibrary/redux";
+import { fetchBaseQuery } from "sveltedux/api";
 
 const baseQuery = fetchBaseQuery({
   baseUrl: "https://api.example.com",
@@ -166,6 +166,8 @@ The `createApiHooks` function generates Svelte 5 reactive hooks for your endpoin
 
 ### Query Hooks
 
+Query hooks return a reactive object with the query state.
+
 ```typescript
 // Auto-generated from getPosts endpoint
 const useGetPostsQuery = createQueryHook(store, api, "getPosts");
@@ -178,21 +180,29 @@ const useGetPostsQuery = createQueryHook(store, api, "getPosts");
 
 ### Mutation Hooks
 
+Mutation hooks return a trigger function that is also a reactive object containing the mutation state.
+
 ```typescript
 // Auto-generated from addPost endpoint
 const useAddPostMutation = createMutationHook(store, api, "addPost");
 
 // Usage in component
 <script lang="ts">
-  const [addPost, { data, error, isLoading }] = useAddPostMutation();
+  const addPost = useAddPostMutation();
   
   async function handleSubmit(newPost) {
     await addPost(newPost);
   }
 </script>
+
+<button on:click={() => addPost({ title: '...' })} disabled={addPost.isLoading}>
+  {addPost.isLoading ? 'Adding...' : 'Add Post'}
+</button>
 ```
 
 ### Lazy Query Hooks
+
+Lazy query hooks return a tuple containing a trigger function and the reactive query state object.
 
 ```typescript
 // Auto-generated from getPost endpoint
@@ -288,7 +298,7 @@ store.dispatch(util.prefetch("getPosts", undefined));
 The API provides selectors for accessing cache state.
 
 ```typescript
-import { createApiStateSelectors } from "sveltekitlibrary/redux";
+import { createApiStateSelectors } from "sveltedux/api";
 
 const selectors = createApiStateSelectors("api"); // reducerPath
 
@@ -313,7 +323,7 @@ const { hasAnyErrors, errorQueries } = selectors.selectQueriesErrors(store.getSt
 The API includes built-in middleware for cache management and network status.
 
 ```typescript
-import { createNetworkStatusMiddleware } from "sveltekitlibrary/redux";
+import { createNetworkStatusMiddleware } from "sveltedux/api";
 
 const networkMiddleware = createNetworkStatusMiddleware();
 
@@ -354,7 +364,7 @@ if (isSuccess) {
 
 ```typescript
 // postsApi.ts
-import { createApi, fetchBaseQuery } from "sveltekitlibrary/redux";
+import { createApi, fetchBaseQuery } from "sveltedux/api";
 
 export const postsApi = createApi({
   reducerPath: "postsApi",
@@ -366,7 +376,7 @@ export const postsApi = createApi({
 });
 
 // usersApi.ts
-import { createApi, fetchBaseQuery } from "sveltekitlibrary/redux";
+import { createApi, fetchBaseQuery } from "sveltedux/api";
 
 export const usersApi = createApi({
   reducerPath: "usersApi",

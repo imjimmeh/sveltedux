@@ -11,7 +11,7 @@ import {
   applyMiddleware,
   thunkMiddleware,
   loggerMiddleware,
-} from "sveltekitlibrary/redux";
+} from "sveltedux";
 
 const store = createStore(
   reducer,
@@ -31,8 +31,8 @@ const store = createStore(
 ### Example
 
 ```typescript
-import { applyMiddleware } from "sveltekitlibrary/redux";
-import { thunkMiddleware, loggerMiddleware } from "sveltekitlibrary/redux";
+import { applyMiddleware } from "sveltedux";
+import { thunkMiddleware, loggerMiddleware } from "sveltedux";
 
 const enhancedCreateStore = applyMiddleware(thunkMiddleware, loggerMiddleware);
 
@@ -44,7 +44,7 @@ const store = createStore(reducer, initialState, enhancedCreateStore);
 Middleware for handling thunk actions (async functions).
 
 ```typescript
-import { thunkMiddleware } from "sveltekitlibrary/redux";
+import { thunkMiddleware } from "sveltedux";
 
 const asyncAction = () => async (dispatch, getState) => {
   dispatch({ type: "LOADING_START" });
@@ -64,7 +64,7 @@ store.dispatch(asyncAction());
 ### Example
 
 ```typescript
-import { thunkMiddleware } from "sveltekitlibrary/redux";
+import { thunkMiddleware } from "sveltedux";
 
 // Async action creator
 const fetchUser = (userId) => async (dispatch, getState) => {
@@ -88,7 +88,7 @@ store.dispatch(fetchUser(1));
 Middleware for logging actions and state changes.
 
 ```typescript
-import { loggerMiddleware } from "sveltekitlibrary/redux";
+import { loggerMiddleware } from "sveltedux";
 ```
 
 ### Features
@@ -100,7 +100,7 @@ import { loggerMiddleware } from "sveltekitlibrary/redux";
 ### Example
 
 ```typescript
-import { loggerMiddleware } from "sveltekitlibrary/redux";
+import { loggerMiddleware } from "sveltedux";
 
 // Custom logger with options
 const store = createStore(
@@ -122,7 +122,7 @@ const store = createStore(
 ### Basic Middleware Structure
 
 ```typescript
-import { type Middleware } from "sveltekitlibrary/redux";
+import { type Middleware } from "sveltedux";
 
 const customMiddleware: Middleware =
   ({ dispatch, getState }) =>
@@ -156,7 +156,7 @@ const store = createStore(
 ### Advanced Middleware Example
 
 ```typescript
-import { type Middleware } from "sveltekitlibrary/redux";
+import { type Middleware } from "sveltedux";
 
 const timingMiddleware: Middleware =
   ({ dispatch }) =>
@@ -181,7 +181,7 @@ const timingMiddleware: Middleware =
 ### Conditional Middleware
 
 ```typescript
-import { type Middleware } from "sveltekitlibrary/redux";
+import { type Middleware } from "sveltedux";
 
 const conditionalMiddleware: Middleware =
   ({ dispatch, getState }) =>
@@ -201,7 +201,7 @@ const conditionalMiddleware: Middleware =
 ### Error Handling Middleware
 
 ```typescript
-import { type Middleware } from "sveltekitlibrary/redux";
+import { type Middleware } from "sveltedux";
 
 const errorHandlingMiddleware: Middleware =
   ({ dispatch }) =>
@@ -228,7 +228,7 @@ const errorHandlingMiddleware: Middleware =
 ### Async Action Middleware
 
 ```typescript
-import { type Middleware } from "sveltekitlibrary/redux";
+import { type Middleware } from "sveltedux";
 
 const asyncActionMiddleware: Middleware =
   ({ dispatch }) =>
@@ -248,7 +248,7 @@ const asyncActionMiddleware: Middleware =
 ### 1. Logging Middleware
 
 ```typescript
-import { type Middleware } from "sveltekitlibrary/redux";
+import { type Middleware } from "sveltedux";
 
 const loggerMiddleware: Middleware =
   ({ getState }) =>
@@ -270,7 +270,7 @@ const loggerMiddleware: Middleware =
 ### 2. Crash Reporting Middleware
 
 ```typescript
-import { type Middleware } from "sveltekitlibrary/redux";
+import { type Middleware } from "sveltedux";
 
 const crashReportingMiddleware: Middleware =
   ({ getState }) =>
@@ -295,7 +295,7 @@ const crashReportingMiddleware: Middleware =
 ### 3. Router Middleware
 
 ```typescript
-import { type Middleware } from "sveltekitlibrary/redux";
+import { type Middleware } from "sveltedux";
 
 const routerMiddleware: Middleware =
   ({ dispatch }) =>
@@ -313,7 +313,7 @@ const routerMiddleware: Middleware =
 ### 4. Thunk Middleware with Extra Arguments
 
 ```typescript
-import { type Middleware } from "sveltekitlibrary/redux";
+import { type Middleware } from "sveltedux";
 
 const apiThunkMiddleware: Middleware =
   ({ dispatch, getState }) =>
@@ -331,7 +331,7 @@ const apiThunkMiddleware: Middleware =
 ### 5. Batch Actions Middleware
 
 ```typescript
-import { type Middleware } from "sveltekitlibrary/redux";
+import { type Middleware } from "sveltedux";
 
 const batchMiddleware: Middleware =
   ({ dispatch }) =>
@@ -351,7 +351,7 @@ const batchMiddleware: Middleware =
 ### Composing Multiple Middlewares
 
 ```typescript
-import { applyMiddleware } from "sveltekitlibrary/redux";
+import { applyMiddleware } from "sveltedux";
 
 // Order matters: right to left execution
 const middleware = applyMiddleware(
@@ -367,7 +367,7 @@ const store = createStore(reducer, initialState, middleware);
 ### Conditional Middleware Application
 
 ```typescript
-import { applyMiddleware } from "sveltekitlibrary/redux";
+import { applyMiddleware } from "sveltedux";
 
 const createEnhancer = (middlewares) => {
   if (process.env.NODE_ENV === "development") {
@@ -472,7 +472,7 @@ import {
   type Action,
   type Dispatch,
   type GetState,
-} from "sveltekitlibrary/redux";
+} from "sveltedux";
 
 interface MyState {
   user: User | null;
@@ -501,8 +501,8 @@ For more information about async operations, see the [Async State Management](..
 Middleware that automatically retries failed async thunks. The middleware uses a thunk registry to re-execute the original thunk, which is more robust than dispatching separate retry actions.
 
 ```typescript
-import { createRetryMiddleware } from "sveltekitlibrary/redux";
-import { createAsyncThunk } from "sveltekitlibrary/redux";
+import { createRetryMiddleware } from "sveltedux";
+import { createAsyncThunk } from "sveltedux/async";
 
 const fetchUser = createAsyncThunk('user/fetchUser', async (id) => {...});
 const fetchTodos = createAsyncThunk('todos/fetchTodos', async () => {...});
@@ -544,8 +544,8 @@ const store = createStore(
 ### Example with Selective Retry Enablement
 
 ```typescript
-import { createRetryMiddleware } from "sveltekitlibrary/redux";
-import { createAsyncThunk } from "sveltekitlibrary/redux";
+import { createRetryMiddleware } from "sveltedux";
+import { createAsyncThunk } from "sveltedux/async";
 
 const fetchUser = createAsyncThunk('user/fetchUser', async (id) => {...});
 const updateUser = createAsyncThunk('user/updateUser', async (data) => {...});
@@ -565,7 +565,7 @@ const retryMiddleware = createRetryMiddleware(thunkRegistry, {
 ### Example with Custom Retry Condition
 
 ```typescript
-import { createRetryMiddleware } from "sveltekitlibrary/redux";
+import { createRetryMiddleware } from "sveltedux";
 
 const retryMiddleware = createRetryMiddleware(thunkRegistry, {
   maxRetries: 3,

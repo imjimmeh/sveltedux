@@ -7,7 +7,7 @@ import { createDebouncer, getOrCreateController } from "./utils.js";
 /**
  * Store enhancer that rehydrates state at creation and persists updates with debounced writes.
  */
-export function createPersistEnhancer<TState = any>(
+export function createPersistEnhancer<TState = unknown>(
   options: PersistOptions<TState> = {}
 ): StoreEnhancer<TState> {
   const {

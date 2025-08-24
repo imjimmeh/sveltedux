@@ -12,7 +12,7 @@ import { getOrCreateController } from "./utils.js";
 /**
  * Middleware that can control persistence behavior via actions and optional gating.
  */
-export function createPersistMiddleware<TState = any>(options?: {
+export function createPersistMiddleware<TState = unknown>(options?: {
   key?: string;
   storage?: StorageLike;
   storageKind?: StorageKind;

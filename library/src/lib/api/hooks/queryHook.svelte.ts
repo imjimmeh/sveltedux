@@ -1,99 +1,101 @@
+import { deepEqual } from "../../utils.js";
 import type { Store } from "../../types.js";
 import type { Api } from "../types.js";
 import type { UseQueryOptions, QueryHookResult } from "./types.js";
 import {
   validateQueryOptions,
   createInitialQueryState,
-  createQueryHookResult,
-  cleanupQuerySubscription,
 } from "./utils.js";
 import { createQuerySubscription } from "./subscriptions.js";
 
 /**
- * Creates a reactive query hook for Svelte 5
+ * Creates a reactive query hook for Svelte 5 that integrates with createApi
  */
 export function createQueryHook<TResult, TArgs = unknown, TError = unknown>(
-  store: Store,
+  store: Store<any>,
   api: Api<any, any, any>,
   endpointName: string
 ) {
+  // Validate that the endpoint exists
+  if (!api.endpoints[endpointName]) {
+    throw new Error(`Unknown endpoint: ${endpointName}`);
+  }
+
   return function useQuery(
     args: TArgs | undefined = undefined,
     options: UseQueryOptions = {}
   ): QueryHookResult<TResult, TError> {
     const hookOptions = validateQueryOptions(options);
+
     const initiate = api.endpoints[endpointName].initiate;
+    const select = api.endpoints[endpointName].select;
 
-    // Create reactive state
     let queryState = $state(createInitialQueryState<TResult, TError>());
+    let subscription: ReturnType<typeof createQuerySubscription> | null = null;
+    let prevArgs: TArgs | undefined;
 
-    // Create refetch function
     const refetch = async () => {
       if (args !== undefined) {
-        await executeQuery();
+        store.dispatch(initiate(args));
       }
     };
 
-    // Subscribe to store updates and manage query lifecycle
     $effect(() => {
+      // Cleanup previous subscription
+      if (subscription) {
+        subscription.unsubscribe();
+        subscription = null;
+      }
+
+      // Handle skip or undefined args
       if (hookOptions.skip || args === undefined) {
+        Object.assign(queryState, createInitialQueryState<TResult, TError>());
         return;
       }
 
-      // Initial fetch
-      if (hookOptions.refetchOnMount) {
-        executeQuery();
+      const argsChanged = !deepEqual(args, prevArgs);
+
+      // Initial fetch if needed
+      if (queryState.isUninitialized || argsChanged) {
+        store.dispatch(initiate(args));
       }
 
-      return () => {}; // No cleanup needed for this simplified version
+      prevArgs = args;
+
+      // Create selector function
+      const selectorFn = select(args) as (
+        state: any
+      ) => QueryHookResult<TResult, TError>;
+
+      // Create subscription using the subscription management system
+      subscription = createQuerySubscription(
+        store,
+        selectorFn,
+        initiate,
+        args,
+        hookOptions,
+        (newState) => {
+          Object.assign(queryState, {
+            ...newState,
+            refetch,
+          });
+        }
+      );
+
+      // Initial state update
+      const currentState = selectorFn(store.getState());
+      Object.assign(queryState, {
+        ...currentState,
+        refetch,
+      });
+
+      return () => {
+        if (subscription) {
+          subscription.unsubscribe();
+          subscription = null;
+        }
+      };
     });
-
-    // Simple query execution function
-    const executeQuery = async () => {
-      try {
-        queryState.isLoading = true;
-        queryState.isFetching = true;
-        queryState.isError = false;
-        queryState.isUninitialized = false;
-
-        let url, method = 'GET';
-        
-        if (endpointName === 'getPosts') {
-          url = 'https://jsonplaceholder.typicode.com/posts';
-        } else if (endpointName === 'getPost') {
-          url = `https://jsonplaceholder.typicode.com/posts/${args}`;
-        } else if (endpointName === 'getUsers') {
-          url = 'https://jsonplaceholder.typicode.com/users';
-        } else {
-          throw new Error(`Unknown endpoint: ${endpointName}`);
-        }
-
-        const response = await fetch(url, { method });
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        
-        queryState.data = data;
-        queryState.currentData = data;
-        queryState.isLoading = false;
-        queryState.isFetching = false;
-        queryState.isSuccess = true;
-        queryState.error = undefined;
-        
-      } catch (error) {
-        queryState.error = error;
-        queryState.isLoading = false;
-        queryState.isFetching = false;
-        queryState.isSuccess = false;
-        queryState.isError = true;
-      }
-    };
-
-    // Update queryState to include refetch
-    queryState.refetch = refetch;
 
     return queryState;
   };

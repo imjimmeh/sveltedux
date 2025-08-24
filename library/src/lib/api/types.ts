@@ -1,21 +1,16 @@
-import type {
-  Action,
-  Reducer,
-  Middleware,
-  Store,
-  AsyncState,
-} from "../types.js";
+import type { Action, Reducer, Middleware, Store } from "../types.js";
+import type { AsyncState } from "../async/types.js";
 
 // Base query function type
-export type BaseQuery<TResult = unknown, TArgs = any, TError = unknown> = (
+export type BaseQuery<TResult = unknown, TArgs = unknown, TError = unknown> = (
   args: TArgs,
   api: BaseQueryApi
 ) => Promise<QueryResult<TResult, TError>>;
 
 export interface BaseQueryApi {
   signal: AbortSignal;
-  dispatch: Store["dispatch"];
-  getState: Store["getState"];
+  dispatch: Store<any>["dispatch"];
+  getState: Store<any>["getState"];
 }
 
 export type QueryResult<TResult = unknown, TError = unknown> =
@@ -33,36 +28,40 @@ export type TagDescription<T extends string> = T | Tag<T>;
 // Endpoint definitions
 export interface QueryDefinition<
   TResult = unknown,
-  TArgs = any,
+  TArgs = unknown,
   TTagType extends string = string,
   TError = unknown
 > {
   query: (args: TArgs) => any;
   transformResponse?: (response: any, meta: any, arg: TArgs) => TResult;
   transformErrorResponse?: (response: any, meta: any, arg: TArgs) => TError;
-  providesTags?: (
-    result: TResult | undefined,
-    error: TError | undefined,
-    arg: TArgs
-  ) => readonly TagDescription<TTagType>[];
+  providesTags?: 
+    | readonly TagDescription<TTagType>[]
+    | ((
+        result: TResult | undefined,
+        error: TError | undefined,
+        arg: TArgs
+      ) => readonly TagDescription<TTagType>[]);
   keepUnusedDataFor?: number;
   extraOptions?: any;
 }
 
 export interface MutationDefinition<
   TResult = unknown,
-  TArgs = any,
+  TArgs = unknown,
   TTagType extends string = string,
   TError = unknown
 > {
   query: (args: TArgs) => any;
   transformResponse?: (response: any, meta: any, arg: TArgs) => TResult;
   transformErrorResponse?: (response: any, meta: any, arg: TArgs) => TError;
-  invalidatesTags?: (
-    result: TResult | undefined,
-    error: TError | undefined,
-    arg: TArgs
-  ) => readonly TagDescription<TTagType>[];
+  invalidatesTags?: 
+    | readonly TagDescription<TTagType>[]
+    | ((
+        result: TResult | undefined,
+        error: TError | undefined,
+        arg: TArgs
+      ) => readonly TagDescription<TTagType>[]);
   keepUnusedDataFor?: number;
   extraOptions?: any;
 }
@@ -182,6 +181,7 @@ export interface Api<
       infer TError
     >
       ? {
+          type: "query";
           select: (
             args: TArgs
           ) => (state: any) => QueryHookResult<TResult, TError>;
@@ -194,6 +194,7 @@ export interface Api<
           infer TError
         >
       ? {
+          type: "mutation";
           select: (state: any) => MutationHookResult<TResult, TArgs, TError>;
           initiate: (args: TArgs) => any;
         }
